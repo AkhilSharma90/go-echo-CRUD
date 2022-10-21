@@ -62,6 +62,14 @@ func newCustomerList(db map[uint64]*Customer) AllCustomers {
 	}
 }
 
+func newReportResponse(n uint64) ReportResponse {
+	return ReportResponse{
+		TotalCustomers: n,
+		Period:         1,
+		Message:        "success",
+	}
+}
+
 func getCustomersSlice(db map[uint64]*Customer) []*CustomerResponse {
 	ans := make([]*CustomerResponse, 0, len(db))
 	for _, c := range db {
@@ -164,6 +172,29 @@ func DeleteCustomer(c echo.Context) error {
 
 }
 
+func sameMonth(m int, c *Customer) bool {
+	return int(c.RegisterDate.Month()) == m
+}
+
+func ReportByMonth(c echo.Context) error {
+	monthI, err := strconv.Atoi(c.Param("month"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, createError())
+	}
+	var ans uint64 = 0
+	for _, customer := range db {
+		if sameMonth(monthI, customer) {
+			ans++
+		}
+	}
+	if ans == 0 {
+		return c.JSON(http.StatusNotFound, createError())
+	} else {
+		return c.JSON(http.StatusOK, newReportResponse(ans))
+	}
+
+}
+
 func main() {
 
 	e := echo.New()
@@ -174,5 +205,6 @@ func main() {
 	e.PUT("/customers/:cid", EditCustomer)
 	e.GET("/customers", GetCustomers)
 	e.DELETE("/customers/:cid", DeleteCustomer)
+	e.GET("/report/:month", ReportByMonth)
 	e.Logger.Fatal(e.Start(":3000"))
 }
