@@ -148,6 +148,22 @@ func EditCustomer(c echo.Context) error {
 	return c.JSON(http.StatusCreated, newCustomerResponse(oldUser))
 }
 
+func DeleteCustomer(c echo.Context) error {
+	cidI, err := strconv.Atoi(c.Param("cid"))
+	if err != nil {
+		return err
+	}
+	cid := uint64(cidI)
+
+	_, ok := db[cid]
+	if !ok {
+		return c.JSON(http.StatusNotFound, createError())
+	}
+	delete(db, cid)
+	return c.JSON(http.StatusOK, JustMSG{Message: "success"})
+
+}
+
 func main() {
 
 	e := echo.New()
@@ -157,5 +173,6 @@ func main() {
 	e.POST("/customers", CreateNewCustomer)
 	e.PUT("/customers/:cid", EditCustomer)
 	e.GET("/customers", GetCustomers)
+	e.DELETE("/customers/:cid", DeleteCustomer)
 	e.Logger.Fatal(e.Start(":3000"))
 }
