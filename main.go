@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -48,6 +49,26 @@ var (
 	last uint64 = 0
 )
 
+func createError() JustMSG {
+	return JustMSG{Message: "error"}
+}
+
+func newCustomerList(db map[uint64]*Customer) AllCustomers {
+	return AllCustomers{
+		Size:      uint64(len(db)),
+		Customers: getCustomersSlice(db),
+		Message:   "success",
+	}
+}
+
+func getCustomersSlice(db map[uint64]*Customer) []*CustomerResponse {
+	ans := make([]*CustomerResponse, 0, len(db))
+	for _, c := range db {
+		ans = append(ans, newCustomerResponse(c))
+	}
+	return ans
+}
+
 func CreateNewCustomer(c echo.Context) error {
 
 	newUser := &Customer{
@@ -80,6 +101,35 @@ func newCustomerResponse(c *Customer) *CustomerResponse {
 	}
 }
 
+func searchCustomer(c echo.Context) error {
+	prefix := c.QueryParam("cName")
+	for _, customer := range db {
+		if strings.HasPrefix(customer.Name, prefix) {
+			return c.JSON(http.StatusFound, newCustomerResponse(customer))
+		}
+	}
+	return c.JSON(http.StatusNotFound, createError())
+}
+
+func getAll(c echo.Context) error {
+	ans := newCustomerList(db)
+	if ans.Size == 0 {
+		return c.JSON(http.StatusNotFound, createError())
+	}
+	return c.JSON(http.StatusOK, ans)
+}
+
+func GetCustomers(c echo.Context) error {
+	qp := c.QueryParam("cName")
+	ok := qp != ""
+	if ok {
+		return searchCustomer(c)
+	} else {
+		return getAll(c)
+	}
+
+}
+
 func main() {
 
 	e := echo.New()
@@ -87,5 +137,6 @@ func main() {
 		return c.String(http.StatusOK, "Hello, World!")
 	})
 	e.POST("/customers", CreateNewCustomer)
+	e.GET("/customers", GetCustomers)
 	e.Logger.Fatal(e.Start(":3000"))
 }
